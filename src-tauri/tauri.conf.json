@@ -75,6 +75,7 @@
       {
         "decorations": false,
         "fullscreen": false,
+        "center": true,
         "height": 575,
         "minHeight": 520,
         "resizable": true,

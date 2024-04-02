@@ -30,8 +30,7 @@ export default function TopBar() {
 	}, []);
 
 	return (
-		<div
-			className="flex flex-row items-center w-full h-12">
+		<div className="flex flex-row items-center w-full h-12">
 			<i className="p-4 w-16 text-center ri-box-1-fill"></i>
 			<div
 				className="flex flex-grow items-center bg-inherit h-full select-none"
