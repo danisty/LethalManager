@@ -17,7 +17,7 @@ Lethal Manager is a mod management tool designed for Lethal Company, inspired by
 - [ ] Settings
 
 ## Installation
-To install Lethal Manager, visit the [releases page](https://github.com/danisty/lethal-manager/releases) and download the latest version.
+To install Lethal Manager, visit the [releases page](https://github.com/danisty/LethalManager/releases) and download the latest version.
 
 ## Contributing
 To contribute to Lethal Manager:

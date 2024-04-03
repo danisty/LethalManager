@@ -7,7 +7,7 @@
     "distDir": "../out"
   },
   "package": {
-    "productName": "lethal-manager",
+    "productName": "LethalManager",
     "version": "0.1.0"
   },
   "tauri": {
