@@ -14,7 +14,7 @@ pub fn show_in_explorer(path: String) {
         .unwrap();
 }
 
-pub fn create_symlink(symlink: &str, destination: &str) {
+/* pub fn create_symlink(symlink: &str, destination: &str) {
     let symlink = symlink.trim_end_matches('/');
     let destination = destination.trim_end_matches('/');
 
@@ -25,7 +25,7 @@ pub fn create_symlink(symlink: &str, destination: &str) {
     std::process::Command::new("cmd")
         .arg("/C")
         .arg("mklink")
-        .arg("/J")
+        .arg("/D")
         .arg(symlink)
         .arg(destination)
         .creation_flags(CREATE_NO_WINDOW)
@@ -33,11 +33,9 @@ pub fn create_symlink(symlink: &str, destination: &str) {
         .unwrap();
 
     println!("Created symlink from {} -> {}", symlink, destination);
-}
+} */
 
 pub fn extract_file(file: &mut ZipFile, outpath: &str) {
-    // println!("Extracted file {}", outpath);
-
     if let Some(p) = Path::new(&outpath).parent() {
         if !p.exists() {
             std::fs::create_dir_all(p).unwrap();

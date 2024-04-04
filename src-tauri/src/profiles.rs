@@ -2,7 +2,7 @@ use crate::{installs, profiles, thunderstore::{self, ModInfo, Version}, userdata
 use std::{fs::{File, OpenOptions}, io::{Read, Write}, os::windows::process::CommandExt, path::Path};
 use glob::glob;
 use serde::{Deserialize, Serialize};
-use regex::Regex;
+use regex::{Captures, Regex};
 use futures_util::StreamExt;
 use tauri::Window;
 
@@ -355,6 +355,12 @@ pub async fn toggle_mod(profile: String, name: String) {
     }
 }
 
+fn fix_path(str: &str) -> String {
+    Regex::new(r"(?i)bepinex/(.+?)/(.+)").unwrap().replace(str, |caps: &Captures| {
+        format!("BepInEx/{}/{}", caps[1].to_lowercase(), &caps[2])
+    }).to_string()
+}
+
 fn extract_mod(mod_name: &str, file_path: &str, profile_dir: &str, on_extract: impl Fn(f32) -> ()) {
     let zip_file = File::open(file_path).unwrap();
     let mut archive = zip::ZipArchive::new(zip_file).unwrap();
@@ -386,9 +392,10 @@ fn extract_mod(mod_name: &str, file_path: &str, profile_dir: &str, on_extract: i
                 path = parent.unwrap();
             }
         }
-    }
 
-    println!("dll folder is {dll_folder}\n");
+        // Fix path in case of incorrect naming
+        dll_folder = fix_path(&dll_folder);
+    }
 
     // Second iteration to extract files
     let files_amount = archive.len();
@@ -397,8 +404,9 @@ fn extract_mod(mod_name: &str, file_path: &str, profile_dir: &str, on_extract: i
 
         // Report current extraction progress
         on_extract(i as f32 / files_amount as f32 * 100.0);
-
-        let file_path = file.name();
+        
+        // Fix path in case of incorrect naming
+        let file_path = fix_path(file.name());
         let file_name;
 
         if let Some(p) = file.enclosed_name() {
@@ -423,28 +431,21 @@ fn extract_mod(mod_name: &str, file_path: &str, profile_dir: &str, on_extract: i
         }
         
         let parent = Path::new(&file_path).parent().unwrap();
-        let incompatible = parent.ends_with(&format!("{}/", mod_name)); // Folder name is the same as the mod name, which can't happen
 
         let path_in_dll_folder = file_path.starts_with(&dll_folder);
-        let file_in_dll_folder = parent.ends_with(&dll_folder);
         let file_in_plugins = parent.ends_with("plugins");
 
-        let outpath = if file_path.starts_with("BepInEx/") {
+        let outpath = if Regex::new(r"(?i)bepinex/").unwrap().is_match(&file_path) {
             let sub_path = &file_path["BepInEx/".len()..];
             match sub_path.split_once('/') {
                 Some(("config", path)) => format!("{}\\BepInEx\\config\\{}", profile_dir, path),
-                Some(("plugins", path)) if (path_in_dll_folder && file_in_dll_folder) || incompatible => {
+                Some(("plugins", path)) =>  if path_in_dll_folder || file_in_plugins {
                     // Save in mod folder
                     format!("{}\\{}", mod_folder, path.replace(&dll_folder, ""))
-                },
-                Some(("plugins", path)) => {
+                } else {
                     // Save in plugins folder
                     if dll_folder == "*" {
-                        if file_in_plugins {
-                            format!("{}\\{}", mod_folder, path)
-                        } else {
-                            format!("{}\\BepInEx\\plugins\\{}", profile_dir, path)
-                        }
+                        format!("{}\\BepInEx\\plugins\\{}", profile_dir, path)
                     } else {
                         format!("{}\\BepInEx\\plugins\\{}", profile_dir, path.replace(&dll_folder, ""))
                     }
@@ -455,18 +456,14 @@ fn extract_mod(mod_name: &str, file_path: &str, profile_dir: &str, on_extract: i
         } else if file_path.starts_with("config/") {
             format!("{}\\BepInEx\\config\\{}", profile_dir, file_path.replace("config/", ""))
         } else if file_path.starts_with("plugins/") {
-            if (path_in_dll_folder && file_in_dll_folder) || incompatible {
+            if path_in_dll_folder || file_in_plugins {
                 // Save in mod folder
                 format!("{}\\{}", mod_folder, file_path.replace(&dll_folder, ""))
             } else {
                 // Save in plugins folder
                 if dll_folder == "*" {
                     let path = &file_path["plugins/".len()..];
-                    if file_in_plugins {
-                        format!("{}\\{}", mod_folder, path)
-                    } else {
-                        format!("{}\\BepInEx\\plugins\\{}", profile_dir, path)
-                    }
+                    format!("{}\\BepInEx\\plugins\\{}", profile_dir, path)
                 } else {
                     format!("{}\\BepInEx\\plugins\\{}", profile_dir, file_path.replace(&dll_folder, ""))
                 }
@@ -479,24 +476,9 @@ fn extract_mod(mod_name: &str, file_path: &str, profile_dir: &str, on_extract: i
             format!("{}\\{}", mod_folder, file_name)
         };
 
-        // Check if a symlink is needed
-        if !incompatible {
-            let p = parent.parent();
-            let path_in_dll_folder = parent.starts_with(&dll_folder);
-            let file_in_dll_folder = p.is_none() || (p.unwrap().ends_with(&dll_folder) && dll_folder.ends_with("plugins/"));
-
-            println!("{outpath}");
-
-            if path_in_dll_folder && file_in_dll_folder {
-                let parent_path_str = parent.display().to_string();
-                utils::create_symlink(
-                    &format!("{}\\{}", mod_folder, parent_path_str.replace(&dll_folder, "")),
-                    &format!("{}\\BepInEx\\plugins\\{}", profile_dir, parent_path_str.replace(&dll_folder, ""))
-                );
-                external_files.push(outpath.clone().replace("\\", "/"));
-            } else if !outpath.starts_with(&mod_folder) { // Store external files + non plugins files
-                external_files.push(outpath.clone().replace("\\", "/"));
-            }
+        let file_stored_outside = !outpath.starts_with(&mod_folder);
+        if file_stored_outside {
+            external_files.push(outpath.clone().replace("\\", "/"));
         }
 
         utils::extract_file(&mut file, &outpath);
