@@ -131,6 +131,7 @@ export default function Profiles() {
 					<Button isIconOnly disableRipple size="sm" color="success"
 						onPress={() => {
 							setError('');
+							setImage(undefined);
 							onOpenCreateProfile();
 						}}>
 						<i className="text-medium ri-add-line"></i>
