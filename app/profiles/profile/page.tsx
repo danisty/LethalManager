@@ -8,6 +8,7 @@ import { Button, Image, Pagination, SortDescriptor, Switch, Table, TableBody, Ta
 import { ModInfo } from "@/app/search/page";
 import { invoke, convertFileSrc } from "@tauri-apps/api/tauri";
 import React from "react";
+import useGameStatus from "@/app/_utils/gamestatus";
 
 export type Profile = {
     name: string,
@@ -28,6 +29,9 @@ function _Profile() {
         direction: 'ascending',
     });
 
+    const game = useGameStatus();
+	const isProfileRunning = game.status.running && game.status.profile! === profile?.name;
+    
     const ref = useRef<HTMLDivElement>(null);
 
     const search = (query: string) => {
@@ -193,12 +197,15 @@ function _Profile() {
                         <a className="pt-2 font-bold text-lg break-all">{profile.name}</a>
                         <a className="pb-3 text-neutral-400">{profileMods.length} mods</a>
                         <div className="flex flex-col gap-2">
-                            <Button disableRipple radius="sm" color="success" className="font-medium"
-                                onPress={() =>
-                                    invoke('play_profile', { name: profile.name })
-                                }>
-                                <i className="text-xl ri-play-fill"></i>
-                                <a className="flex-grow">Play</a>
+                            <Button disableRipple radius="sm" color={isProfileRunning ? "danger" : "success"} className="font-medium"
+                                onPress={() => {
+                                    if (game.status.running)
+                                        invoke('stop_game').then(game.checkStatus);
+                                    if (!isProfileRunning)
+                                        invoke('play_profile', { name: profile.name }).then(game.checkStatus);
+                                }}>
+                                <i className={"m-auto text-lg " + (isProfileRunning ? "ri-stop-fill" : "ri-play-fill")}></i>
+                                <a className="flex-grow">{isProfileRunning ? "Stop" : "Play"}</a>
                             </Button>
                             <Button disableRipple radius="sm" className="font-medium"
                                 onPress={() =>

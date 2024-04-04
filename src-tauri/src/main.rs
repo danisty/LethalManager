@@ -30,6 +30,8 @@ async fn main() {
             installs::add_manual_install,
             thunderstore::load_package,
             thunderstore::search,
+            profiles::stop_game,
+            profiles::get_game_status,
             profiles::play_profile,
             profiles::create_profile,
             profiles::delete_profile,

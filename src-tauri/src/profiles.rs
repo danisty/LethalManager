@@ -1,4 +1,4 @@
-use crate::{installs, profiles, thunderstore::{self, ModInfo, Version}, userdata, utils};
+use crate::{installs, profiles, thunderstore::{self, ModInfo, Version}, userdata::{self, GameStatus}, utils};
 use std::{fs::{File, OpenOptions}, io::{Read, Write}, os::windows::process::CommandExt, path::Path};
 use glob::glob;
 use serde::{Deserialize, Serialize};
@@ -7,6 +7,7 @@ use futures_util::StreamExt;
 use tauri::Window;
 
 use async_recursion::async_recursion;
+use std::process::{Command, Stdio};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct DownloadProgress {
@@ -36,6 +37,53 @@ pub struct Manifest {
 }
 
 #[tauri::command]
+pub async fn get_game_status() -> GameStatus {
+    let game_status = userdata::get_settings().await.game_status.clone();
+    if let Some(game_status) = game_status {
+        let s = sysinfo::System::new_all();
+        let process = s.process(sysinfo::Pid::from_u32(game_status.pid));
+        
+        let new_game_status = if process.is_some() {
+            userdata::get_settings().await.game_status = Some(game_status.clone());
+            game_status
+        } else {
+            userdata::get_settings().await.game_status = None;
+            GameStatus {
+                running: false,
+                profile: None,
+                pid: 0
+            }
+        };
+
+        userdata::save_data().await;
+        new_game_status
+    } else {
+        GameStatus {
+            running: false,
+            profile: None,
+            pid: 0
+        }
+    }
+}
+
+
+#[tauri::command]
+pub async fn stop_game() {
+    let pid = match &userdata::get_settings().await.game_status {
+        Some(g) => g.pid,
+        None => 0
+    };
+    if pid != 0 {
+        let s = sysinfo::System::new_all();
+        if let Some(process) = s.process(sysinfo::Pid::from_u32(pid)) {
+            process.kill();
+        }
+        userdata::get_settings().await.game_status = None;
+        userdata::save_data().await;
+    }
+}
+
+#[tauri::command]
 pub async fn play_profile(name: String) {
     let profile = get_profile(name).await;
 
@@ -56,7 +104,7 @@ pub async fn play_profile(name: String) {
 
         // Run game
         let executable = format!("{}\\Lethal Company.exe", &install.path);
-        std::process::Command::new("cmd")
+        Command::new("cmd")
             .arg("/C")
             .arg("start")
             .arg("")
@@ -66,8 +114,21 @@ pub async fn play_profile(name: String) {
             .arg("--doorstop-target")
             .arg(&format!("{}\\BepInEx\\core\\BepInEx.Preloader.dll", &profile.folder))
             .creation_flags(utils::CREATE_NO_WINDOW)
-            .output()
+            .stdout(Stdio::piped())
+            .spawn()
+            .unwrap()
+            .wait()
             .unwrap();
+
+        let s = sysinfo::System::new_all();
+        let process = s.processes_by_exact_name("Lethal Company.exe").next();
+
+        userdata::get_settings().await.game_status = Some(GameStatus {
+            running: true,
+            profile: Some(profile.name),
+            pid: process.unwrap().pid().as_u32()
+        });
+        userdata::save_data().await;
     }
 }
 

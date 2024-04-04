@@ -16,14 +16,24 @@ static SETTINGS: Lazy<Arc<Mutex<Settings>>> = Lazy::new(|| {
     Arc::new(Mutex::new(Settings {
         selected_install: None,
         installs: Some(vec![]),
+        game_status: None
     }))
 });
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct GameStatus {
+    pub running: bool,
+    pub profile: Option<String>,
+    pub pid: u32
+}
 
 #[derive(Serialize, Deserialize)]
 pub struct Settings {
     pub selected_install: Option<String>,
     pub installs: Option<Vec<Install>>,
+    pub game_status: Option<GameStatus>
 }
+
 
 pub fn get_app_dir() -> String {
     let home_dir: String = UserDirs::new().unwrap().home_dir().to_str().unwrap().into();

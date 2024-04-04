@@ -5,8 +5,9 @@ import { invoke } from "@tauri-apps/api/tauri";
 import React, { Key, useCallback, useEffect, useState } from "react";
 import AppBar from "@/app/_components/appbar";
 import { useRouter } from "next/navigation";
-import ContextMenu from "@/app/_components/context_menu";
+import ContextMenu from "@/app/_components/contextmenu";
 import { convertFileSrc } from "@tauri-apps/api/tauri";
+import useGameStatus, { GameStatusResult } from "../_utils/gamestatus";
 
 export type ProfileInfo = {
     name: string,
@@ -15,8 +16,10 @@ export type ProfileInfo = {
     folder: string
 };
 
-function Profile({ profile, onDelete }: { profile: ProfileInfo, onDelete: () => void }) {
+function Profile({ profile, onDelete, game }: { profile: ProfileInfo, game: GameStatusResult, onDelete: () => void }) {
 	const router = useRouter();
+
+	const isProfileRunning = game.status.running && game.status.profile! === profile.name;
 
 	const onAction = useCallback((key: Key, close: () => void) => {
 		switch (key) {
@@ -57,11 +60,15 @@ function Profile({ profile, onDelete }: { profile: ProfileInfo, onDelete: () => 
 					<a title={profile.name} className="pt-2 w-full text-medium text-start break-all overflow-ellipsis overflow-hidden">{profile.name}</a>
 					<a className="text-neutral-400">{profile.mods_amount} mods</a>
 				</Button>
-				<Button disableRipple isIconOnly color="success" variant="solid" className="right-6 bottom-[4.7rem] absolute opacity-0 group-hover:opacity-100 rounded-lg min-w-10 size-[45px!important]"
-					onPress={() =>
-						invoke('play_profile', { name: profile.name })
-					}>
-					<i className="m-auto text-lg ri-play-fill"></i>
+				<Button disableRipple isIconOnly color={isProfileRunning ? "danger" : "success"} variant="solid"
+					className="right-6 bottom-[4.7rem] absolute opacity-0 group-hover:opacity-100 rounded-lg min-w-10 size-[45px!important]"
+					onPress={() => {
+						if (game.status.running)
+							invoke('stop_game').then(game.checkStatus);
+						if (!isProfileRunning)
+							invoke('play_profile', { name: profile.name }).then(game.checkStatus);
+					}}>
+					<i className={"m-auto text-lg " + (isProfileRunning ? "ri-stop-fill" : "ri-play-fill")}></i>
 				</Button>
 			</div>
 		</ContextMenu>
@@ -74,6 +81,7 @@ export default function Profiles() {
     const [error, setError] = useState('');
 	const [image, setImage] = useState<string>();
 
+	const game = useGameStatus();
     const { isOpen: isCreateProfileOpen, onOpen: onOpenCreateProfile, onOpenChange: onCreateProfileOpenChange } = useDisclosure();
     const { isOpen: isDeleteProfileOpen, onOpen: onOpenDeleteProfile, onOpenChange: onDeleteProfileOpenChange } = useDisclosure();
 
@@ -129,7 +137,7 @@ export default function Profiles() {
 					</Button>
 				</div>
 				<div className="flex flex-row gap-4">
-					{profiles.map((profile, i) => <Profile key={i} profile={profile} onDelete={() => {
+					{profiles.map((profile, i) => <Profile key={i} profile={profile} game={game} onDelete={() => {
 						setProfileName(profile.name);
 						onOpenDeleteProfile();
 					}} />)}
