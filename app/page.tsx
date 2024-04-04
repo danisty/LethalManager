@@ -15,7 +15,7 @@ export default function Main() {
 				if (result.selected_install_path) {
 					router.replace('/profiles');
 				} else {
-					router.replace('/installs')
+					router.replace('/installs');
 				}
 			});
 		});
