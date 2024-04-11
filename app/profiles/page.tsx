@@ -165,7 +165,7 @@ export default function Profiles() {
 								}
 							}} />
 							<label htmlFor="image_selector" className="shrink-0">
-								<div className="bg-primary-rgb bg-cover bg-center rounded-lg cursor-pointer size-24" style={{ "backgroundImage": `url(${image})` }}></div>
+								<div className="bg-primary-rgb bg-cover rounded-lg cursor-pointer size-24" style={{ "backgroundImage": `url(${image})` }}></div>
 							</label>
 							<div className="flex flex-col gap-1 w-full">
 								<a>Profile name</a>
