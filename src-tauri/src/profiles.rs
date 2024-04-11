@@ -9,6 +9,8 @@ use tauri::Window;
 use async_recursion::async_recursion;
 use std::process::{Command, Stdio};
 
+static BEPIN_SUBFOLDERS: [&str; 4] = ["config", "core", "patchers", "plugins"];
+
 #[derive(Clone, Serialize, Deserialize)]
 pub struct DownloadProgress {
     pub current_mod: String,
@@ -422,17 +424,46 @@ fn fix_path(str: &str) -> String {
     }).to_string()
 }
 
-fn extract_mod(mod_name: &str, file_path: &str, profile_dir: &str, on_extract: impl Fn(f32) -> ()) {
+fn resolve_path(
+    file_path: &str,
+    bepin_subfolder: &str,
+    relative_path: &str,
+    profile_folder: &str,
+    mod_folder: &str,
+    dll_folder: &str,
+    path_in_dll_folder: bool,
+    file_in_plugins: bool,
+    file_in_root: bool,
+) -> String {
+    match bepin_subfolder {
+        "plugins" =>  if path_in_dll_folder || file_in_plugins || file_in_root {
+            // Save in mod folder
+            format!("{}\\{}", mod_folder, file_path.replace(&dll_folder, ""))
+        } else {
+            // Save in plugins folder
+            if dll_folder == "*" {
+                format!("{}\\BepInEx\\plugins\\{}", profile_folder, relative_path)
+            } else {
+                format!("{}\\BepInEx\\plugins\\{}", profile_folder, file_path.replace(&dll_folder, ""))
+            }
+        },
+        f if BEPIN_SUBFOLDERS.contains(&f) => format!("{}\\BepInEx\\{}\\{}", profile_folder, bepin_subfolder, relative_path),
+        _ => format!("{}\\{}", mod_folder, relative_path)
+    }
+}
+
+fn extract_mod(mod_name: &str, file_path: &str, profile_folder: &str, on_extract: impl Fn(f32) -> ()) {
     let zip_file = File::open(file_path).unwrap();
     let mut archive = zip::ZipArchive::new(zip_file).unwrap();
     let mut external_files: Vec<String> = vec![];
     
-    let mod_folder = format!("{}\\{}\\{}", profile_dir, "BepInEx\\plugins", mod_name);
+    // Make sure mod folder exists
+    let mod_folder = format!("{}\\{}\\{}", profile_folder, "BepInEx\\plugins", mod_name);
     if !Path::new(&mod_folder).exists() && mod_name != "BepInEx-BepInExPack" {
         std::fs::create_dir_all(&mod_folder).unwrap();
     }
     
-    // First iteration to find the folder where the mod is located
+    // First iteration to find the folder where the mod .dll is located
     let mut dll_folder = String::from("*");
     for i in 0..archive.len() {
         let file = archive.by_index(i).unwrap();
@@ -442,7 +473,7 @@ fn extract_mod(mod_name: &str, file_path: &str, profile_dir: &str, on_extract: i
             let mut path = Path::new(file_path);
             loop {
                 let parent = path.parent();
-                if parent.is_none() || parent.unwrap().display().to_string().to_lowercase().ends_with("plugins") {
+                if parent.is_none() || parent.unwrap().ends_with("plugins") ||  parent.unwrap().ends_with("") {
                     if path == Path::new(file_path) { // Make sure we aren't targeting the dll
                         dll_folder = format!("{}/", parent.unwrap().to_str().unwrap());
                     } else {
@@ -458,6 +489,8 @@ fn extract_mod(mod_name: &str, file_path: &str, profile_dir: &str, on_extract: i
         dll_folder = fix_path(&dll_folder);
     }
 
+    println!("Dll folder is {dll_folder}");
+
     // Second iteration to extract files
     let files_amount = archive.len();
     for i in 0..files_amount {
@@ -468,17 +501,10 @@ fn extract_mod(mod_name: &str, file_path: &str, profile_dir: &str, on_extract: i
         
         // Fix path in case of incorrect naming
         let file_path = fix_path(file.name());
-        let file_name;
-
-        if let Some(p) = file.enclosed_name() {
-            file_name = String::from(p.file_name().unwrap().to_str().unwrap());
-        } else {
-            continue; // Invalid file path
-        }
 
         // Thunderstore's BepInEx mod has a different folder structure. Adapt it to the wanted structure
         if mod_name == "BepInEx-BepInExPack" && file_path.starts_with("BepInExPack/") && file_path != "BepInExPack/" {
-            let path = format!("{}\\{}", profile_dir, file_path.chars().skip(12).collect::<String>()); // Remove "BepInExPack/"
+            let path = format!("{}\\{}", profile_folder, file_path.chars().skip(12).collect::<String>()); // Remove "BepInExPack/"
             if file.is_dir() {
                 std::fs::create_dir_all(&path).unwrap();
             } else {
@@ -495,47 +521,34 @@ fn extract_mod(mod_name: &str, file_path: &str, profile_dir: &str, on_extract: i
 
         let path_in_dll_folder = file_path.starts_with(&dll_folder);
         let file_in_plugins = parent.ends_with("plugins");
+        let file_in_root = parent.display().to_string() == "";
 
-        let outpath = if Regex::new(r"(?i)bepinex/").unwrap().is_match(&file_path) {
+        let bepin_path = if Regex::new(r"(?i)bepinex/").unwrap().is_match(&file_path) {
             let sub_path = &file_path["BepInEx/".len()..];
-            match sub_path.split_once('/') {
-                Some(("config", path)) => format!("{}\\BepInEx\\config\\{}", profile_dir, path),
-                Some(("plugins", path)) =>  if path_in_dll_folder || file_in_plugins {
-                    // Save in mod folder
-                    format!("{}\\{}", mod_folder, path.replace(&dll_folder, ""))
-                } else {
-                    // Save in plugins folder
-                    if dll_folder == "*" {
-                        format!("{}\\BepInEx\\plugins\\{}", profile_dir, path)
-                    } else {
-                        format!("{}\\BepInEx\\plugins\\{}", profile_dir, path.replace(&dll_folder, ""))
-                    }
-                },
-                Some(("patchers", path)) => format!("{}\\{}", mod_folder, path),
-                _ => format!("{}\\BepInEx\\plugins\\{}", profile_dir, sub_path),
-            }
-        } else if file_path.starts_with("config/") {
-            format!("{}\\BepInEx\\config\\{}", profile_dir, file_path.replace("config/", ""))
-        } else if file_path.starts_with("plugins/") {
-            if path_in_dll_folder || file_in_plugins {
-                // Save in mod folder
-                format!("{}\\{}", mod_folder, file_path.replace(&dll_folder, ""))
+            sub_path.split_once('/').unwrap()
+        } else if let Some((bepin_subfolder, relative_path)) = file_path.split_once('/') {
+            if BEPIN_SUBFOLDERS.contains(&bepin_subfolder) {
+                (bepin_subfolder, relative_path)
             } else {
-                // Save in plugins folder
-                if dll_folder == "*" {
-                    let path = &file_path["plugins/".len()..];
-                    format!("{}\\BepInEx\\plugins\\{}", profile_dir, path)
-                } else {
-                    format!("{}\\BepInEx\\plugins\\{}", profile_dir, file_path.replace(&dll_folder, ""))
-                }
+                ("plugins", file_path.as_str())
             }
-        } else if file_path.starts_with("patchers/") {
-            format!("{}\\BepInEx\\patchers\\{}\\{}", profile_dir, mod_name, file_path.replace("patchers/", ""))
-        } else if file_path.contains("/") {
-            format!("{}\\BepInEx\\plugins\\{}", profile_dir, file_path)
         } else {
-            format!("{}\\{}", mod_folder, file_name)
+            ("plugins", file_path.as_str())
         };
+
+        // println!("{:?}, path_in_dll_folder: {path_in_dll_folder}, file_in_plugins: {file_in_plugins}", &bepin_path);
+
+        let outpath = resolve_path(
+            &file_path,
+            bepin_path.0,
+            bepin_path.1,
+            &profile_folder,
+            &mod_folder,
+            &dll_folder,
+            path_in_dll_folder,
+            file_in_plugins,
+            file_in_root
+        );
 
         let file_stored_outside = !outpath.starts_with(&mod_folder);
         if file_stored_outside {

@@ -36,6 +36,8 @@ pub fn show_in_explorer(path: String) {
 } */
 
 pub fn extract_file(file: &mut ZipFile, outpath: &str) {
+    // println!("Extracting file {outpath}");
+
     if let Some(p) = Path::new(&outpath).parent() {
         if !p.exists() {
             std::fs::create_dir_all(p).unwrap();

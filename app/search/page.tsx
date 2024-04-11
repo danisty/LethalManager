@@ -275,7 +275,7 @@ function _SearchTab() {
                                 classNames={{
                                     base: "flex items-center",
                                     label: "whitespace-nowrap",
-                                    trigger: "min-h-0 h-9",
+                                    trigger: "min-h-0 h-9 rounded-lg bg-primary-rgb",
                                 }}>
                                 <SelectItem key="rating" value="rating">Rating</SelectItem>
                                 <SelectItem key="created" value="created">Newest</SelectItem>
