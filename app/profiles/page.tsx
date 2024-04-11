@@ -1,6 +1,6 @@
 'use client'
 
-import { Button, Image, Listbox, ListboxItem, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, useDisclosure } from "@nextui-org/react";
+import { Button, Listbox, ListboxItem, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, useDisclosure } from "@nextui-org/react";
 import { invoke } from "@tauri-apps/api/tauri";
 import React, { Key, useCallback, useEffect, useState } from "react";
 import AppBar from "@/app/_components/appbar";
@@ -62,9 +62,9 @@ function Profile({ profile, onDelete, game }: { profile: ProfileInfo, game: Game
 				</Button>
 				<Button disableRipple isIconOnly color={isProfileRunning ? "danger" : "success"} variant="solid"
 					className="right-6 bottom-[4.7rem] absolute opacity-0 group-hover:opacity-100 rounded-lg min-w-10 size-[45px!important]"
-					onPress={() => {
+					onPress={async () => {
 						if (game.status.running)
-							invoke('stop_game').then(game.checkStatus);
+							await invoke('stop_game').then(game.checkStatus);
 						if (!isProfileRunning)
 							invoke('play_profile', { name: profile.name }).then(game.checkStatus);
 					}}>
