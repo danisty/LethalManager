@@ -4,7 +4,7 @@ import AppBar from "@/app/_components/appbar";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { usePersistedState } from "@/app/_utils/state";
-import { Button, Image, Pagination, SortDescriptor, Switch, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow } from "@nextui-org/react";
+import { Button, Pagination, SortDescriptor, Switch, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow } from "@nextui-org/react";
 import { ModInfo } from "@/app/search/page";
 import { invoke, convertFileSrc } from "@tauri-apps/api/tauri";
 import React from "react";
@@ -48,7 +48,11 @@ function _Profile() {
 
         return filteredMods
             .sort((a, b) => {
-                return a.name.localeCompare(b.name) * (sortDescriptor.direction === 'descending' ? -1 : 1);
+                if (sortDescriptor.column == 'name') {
+                    return a.name.localeCompare(b.name) * (sortDescriptor.direction === 'descending' ? -1 : 1);
+                } else {
+                    return a.author.localeCompare(b.author) * (sortDescriptor.direction === 'descending' ? -1 : 1);
+                }
             })
             .slice(start, end);
     }, [page, filteredMods, sortDescriptor]);
@@ -90,7 +94,7 @@ function _Profile() {
                 );
             case "author":
                 return (
-                    <a>{mod.author}</a>
+                    <a className="line-clamp-1 break-all overflow-ellipsis" title={mod.author}>{mod.author}</a>
                 );
             case "actions":
                 return (
@@ -148,16 +152,16 @@ function _Profile() {
             }}>
             <TableHeader>
                 <TableColumn key="name" align="start" allowsSorting>
-                Name
+                    Name
                 </TableColumn>
                 <TableColumn key="author" align="start" allowsSorting>
-                Author
+                    Author
                 </TableColumn>
                 <TableColumn key="version" align="start">
-                Version
+                    Version
                 </TableColumn>
                 <TableColumn key="actions" align="start">
-                <></>
+                    <></>
                 </TableColumn>
             </TableHeader>
             <TableBody items={mods}>
