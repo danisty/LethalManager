@@ -68,50 +68,54 @@ function _Profile() {
 
     const renderCell = React.useCallback((mod: ModInfo, columnKey: React.Key) => {
         switch (columnKey) {
-          case "name":
-            return (
-                <div className="flex flex-row justify-start items-center gap-2 w-full h-fit">
-                    <picture className="shrink-0">
-                        <img alt="" className="rounded-lg size-12" src={convertFileSrc(mod.icon!)} />
-                    </picture>
-                    <div className="flex flex-col flex-grow items-start pl-1">
-                        <a className="line-clamp-1 font-bold text-lg break-all overflow-ellipsis">{
-                            mod.name
-                        }</a>
-                        <a className="line-clamp-1 text-neutral-300 text-start text-wrap overflow-ellipsis">{
-                            mod.description
-                        }</a>
+            case "name":
+                return (
+                    <div className="flex flex-row justify-start items-center gap-2 w-full h-fit">
+                        <picture className="shrink-0">
+                            <img alt="" className="rounded-lg size-12" src={convertFileSrc(mod.icon!)} />
+                        </picture>
+                        <div className="flex flex-col flex-grow items-start pl-1">
+                            <a className="line-clamp-1 font-bold text-lg break-all overflow-ellipsis">{
+                                mod.name
+                            }</a>
+                            <a className="line-clamp-1 text-neutral-300 text-start text-wrap overflow-ellipsis">{
+                                mod.description
+                            }</a>
+                        </div>
                     </div>
-                </div>
-            );
-          case "version":
-            return (
-                <a>{mod.version_number}</a>
-            );
-          case "actions":
-            return (
-                <div className="flex flex-row justify-end gap-2">
-                    <Button disableRipple isIconOnly size="sm" variant="ghost"
-                        onPress={() => 
-                            invoke('show_in_explorer', { path: mod.folder })
-                        }>
-                        <i className="text-lg ri-folder-fill"></i>
-                    </Button>
-                    <Switch
-                        color="success"
-                        isSelected={mod.enabled}
-                        classNames={{ "wrapper": "m-0" }}
-                        onChange={() => {
-                            invoke('toggle_mod', { profile: profile.name, name: mod.full_name }).then(getProfileMods)
-                        }}/>
-                    <Button disableRipple isIconOnly size="sm" variant="ghost"
-                        onPress={() => 
-                            invoke('delete_mod', { profile: profile.name, name: mod.full_name }).then(getProfileMods)
-                        }>
-                        <i className="text-lg ri-close-line"></i>
-                    </Button>
-                </div>
-            );
+                );
+                case "version":
+                return (
+                    <a>{mod.version_number}</a>
+                );
+            case "author":
+                return (
+                    <a>{mod.author}</a>
+                );
+            case "actions":
+                return (
+                    <div className="flex flex-row justify-end gap-2">
+                        <Button disableRipple isIconOnly size="sm" variant="ghost"
+                            onPress={() => 
+                                invoke('show_in_explorer', { path: mod.folder })
+                            }>
+                            <i className="text-lg ri-folder-fill"></i>
+                        </Button>
+                        <Switch
+                            color="success"
+                            isSelected={mod.enabled}
+                            classNames={{ "wrapper": "m-0" }}
+                            onChange={() => {
+                                invoke('toggle_mod', { profile: profile.name, name: mod.full_name }).then(getProfileMods)
+                            }}/>
+                        <Button disableRipple isIconOnly size="sm" variant="ghost"
+                            onPress={() => 
+                                invoke('delete_mod', { profile: profile.name, name: mod.full_name }).then(getProfileMods)
+                            }>
+                            <i className="text-lg ri-close-line"></i>
+                        </Button>
+                    </div>
+                );
         }
     }, [profile, mods]);
 
@@ -146,6 +150,9 @@ function _Profile() {
                 <TableColumn key="name" align="start" allowsSorting>
                 Name
                 </TableColumn>
+                <TableColumn key="author" align="start" allowsSorting>
+                Author
+                </TableColumn>
                 <TableColumn key="version" align="start">
                 Version
                 </TableColumn>
@@ -155,7 +162,7 @@ function _Profile() {
             </TableHeader>
             <TableBody items={mods}>
                 {(mod) => (
-                <TableRow key={mod.name} data-hover={false}>
+                <TableRow key={mod.full_name} data-hover={false}>
                     {(columnKey) => <TableCell>{renderCell(mod, columnKey)}</TableCell>}
                 </TableRow>
             )}
@@ -224,7 +231,14 @@ function _Profile() {
                 <div ref={ref}  className="flex-1 p-4 w-0 overflow-auto">
                     <div className="flex flex-col">
                         <div className="flex flex-row gap-3 bg-background-rgb p-3 pb-3 rounded-xl">
-                            <input onChange={(e) => search(e.target.value) } placeholder="Search mod..." value={query} className="flex-grow bg-primary-rgb p-2 rounded-lg h-9"></input>
+                            <div className="relative flex-grow">
+                                <input className="flex-grow bg-primary-rgb p-2 rounded-lg w-full h-9"
+                                    placeholder="Search mod..." value={query}
+                                    onChange={(e) => search(e.target.value) } />
+                                <button className="right-2 absolute h-full" onClick={() => search('')}>
+                                    <i className="text-lg ri-close-line"></i>
+                                </button>
+                            </div>
                             <Button disableRipple radius="sm" className="bg-green-500 w-32 h-auto min-h-0 font-medium text-black"
                                 onPress={() => router.push(`/search?profile=${JSON.stringify({
                                     name: profile.name,

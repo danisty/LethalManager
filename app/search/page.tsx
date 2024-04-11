@@ -258,7 +258,7 @@ function _SearchTab() {
                                     value={query}
                                     onChange={(e) => {
                                         search(e.target.value, 0, sortOrder);
-                                    }}/>
+                                    }} />
                                 <button className="right-2 absolute h-full" onClick={() => search('', page, sortOrder, true)}>
                                     <i className="text-lg ri-close-line"></i>
                                 </button>
@@ -298,10 +298,14 @@ function _SearchTab() {
                                             wrapper: "shrink-0"
                                         }}>
                                     </Image>
-                                    <div className="flex flex-col min-w-0 h-24 text-start">
-                                        <a className="font-bold text-[1.4rem] leading-5">{m.name}</a>
-                                        <a title={m.versions[0].description}
-                                           className="my-auto line-clamp-2 min-w-0 text-[1rem] text-ellipsis text-neutral-400 text-start text-wrap overflow-hidden">
+                                    <div className="flex flex-col min-w-0 h-24">
+                                        <div className="flex flex-row gap-2">
+                                            <a className="font-bold text-xl">{m.name}</a>
+                                            <a className="text-neutral-400 self-center">~</a>
+                                            <a className="text-blue-400 text-medium self-center">{m.owner}</a>
+                                        </div>
+                                        <a className="my-auto line-clamp-2 min-w-0 text-[1rem] text-ellipsis text-neutral-400 text-start text-wrap overflow-hidden"
+                                           title={m.versions[0].description}>
                                             {m.versions[0].description}
                                         </a>
                                         <div className="flex flex-row gap-2 overflow-auto scrollbar-hide">
