@@ -34,7 +34,6 @@ pub struct Settings {
     pub game_status: Option<GameStatus>
 }
 
-
 pub fn get_app_dir() -> String {
     let home_dir: String = UserDirs::new().unwrap().home_dir().to_str().unwrap().into();
     let app_dir = format!("{}\\{}", home_dir, "AppData\\Local\\LethalManager");
